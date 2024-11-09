@@ -149,6 +149,36 @@
                 name: "Apple Relay Detection",
                 description: "Detecting if request comes through Apple's Private Relay",
                 details: "Examines the IP and user agent to identify if the request originates from Apple's Private Relay, which can mask IP addresses.",
+            },
+            {
+                name: "Rate Limiting",
+                description: "Checking request frequency from IP",
+                details: "Monitors and limits the number of requests from a single IP address within a specified time window to prevent DDoS attacks and brute force attempts."
+            },
+            {
+                name: "Geographic Filter",
+                description: "Validating request origin location",
+                details: "Uses IP geolocation to determine the request's origin country and validates against allowed/blocked country lists. Helps prevent attacks from high-risk regions."
+            },
+            {
+                name: "User Agent Validation",
+                description: "Checking for suspicious user agents",
+                details: "Validates user agent strings against known patterns of legitimate browsers and identifies suspicious ones commonly used by bots or automated tools."
+            },
+            {
+                name: "Input Sanitization",
+                description: "Cleaning and validating input parameters",
+                details: "Removes or encodes potentially dangerous characters and validates input length, type, and format to prevent various injection attacks."
+            },
+            {
+                name: "Protocol Enforcement",
+                description: "Ensuring valid HTTP protocol usage",
+                details: "Validates HTTP protocol compliance, including header format, content length, and transfer encoding. Blocks malformed requests and protocol abuse attempts."
+            },
+            {
+                name: "Cookie Inspection",
+                description: "Validating cookie integrity and format",
+                details: "Examines cookies for tampering attempts, ensures proper format, and validates session tokens. Helps prevent session hijacking and cookie poisoning attacks."
             }
         ];
 
@@ -186,6 +216,22 @@
             return isSafari && appleRelayIpPatterns.some(pattern => pattern.test(ip));
         }
 
+        async function generateRequestDetails() {
+            const ip = await getUserIP();
+            return {
+                timestamp: new Date().toISOString(),
+                ip: ip,
+                userAgent: navigator.userAgent,
+                endpoint: getRandomElement(endpoints),
+                method: getRandomElement(["GET", "POST", "PUT", "DELETE"]),
+                isAppleRelay: detectAppleRelay(navigator.userAgent, ip)
+            };
+        }
+
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
         function simulateWAFProcessing(requestDetails) {
             const results = [];
             let blocked = false;
@@ -193,7 +239,7 @@
             wafRules.forEach(rule => {
                 let passed = true;
                 if (rule.name === "Apple Relay Detection") {
-                    passed = !detectAppleRelay(requestDetails.userAgent, requestDetails.ip);
+                    passed = !requestDetails.isAppleRelay;
                 } else {
                     passed = Math.random() > 0.2;
                 }
@@ -234,6 +280,10 @@
                     <span class="tooltiptext">Your browser's identification string. WAF analyzes this to detect suspicious clients</span>
                 </div>
                 <div class="tooltip">
+                    <p><strong>Apple Relay:</strong> ${details.isAppleRelay ? "Detected" : "Not Detected"}</p>
+                    <span class="tooltiptext">Indicates if Apple Relay was detected based on IP and user agent</span>
+                </div>
+                <div class="tooltip">
                     <p><strong>Endpoint:</strong> ${details.endpoint}</p>
                     <span class="tooltiptext">The requested URL path. Different security rules may apply to different endpoints</span>
                 </div>
@@ -268,14 +318,7 @@
         }
 
         async function simulateNewRequest() {
-            const ip = await getUserIP();
-            const requestDetails = {
-                timestamp: new Date().toISOString(),
-                ip: ip,
-                userAgent: navigator.userAgent,
-                endpoint: getRandomElement(endpoints),
-                method: getRandomElement(["GET", "POST", "PUT", "DELETE"])
-            };
+            const requestDetails = await generateRequestDetails();
             const wafResults = simulateWAFProcessing(requestDetails);
             
             displayRequestInfo(requestDetails);
@@ -323,7 +366,6 @@
             document.getElementById('infoOverlay').style.display = 'none';
             document.getElementById('statsPanel').style.display = 'none';
         }
-
         simulateNewRequest();
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
