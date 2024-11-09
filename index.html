@@ -148,7 +148,7 @@
             {
                 name: "Apple Relay Detection",
                 description: "Detecting if request comes through Apple's Private Relay",
-                details: "Examines the IP and user agent to identify if the request originates from Apple's Private Relay, which can mask IP addresses.",
+                details: "Examines IP and user agent to identify Apple Private Relay connections, which are known to mask IP addresses.",
             },
             {
                 name: "Rate Limiting",
@@ -159,26 +159,6 @@
                 name: "Geographic Filter",
                 description: "Validating request origin location",
                 details: "Uses IP geolocation to determine the request's origin country and validates against allowed/blocked country lists. Helps prevent attacks from high-risk regions."
-            },
-            {
-                name: "User Agent Validation",
-                description: "Checking for suspicious user agents",
-                details: "Validates user agent strings against known patterns of legitimate browsers and identifies suspicious ones commonly used by bots or automated tools."
-            },
-            {
-                name: "Input Sanitization",
-                description: "Cleaning and validating input parameters",
-                details: "Removes or encodes potentially dangerous characters and validates input length, type, and format to prevent various injection attacks."
-            },
-            {
-                name: "Protocol Enforcement",
-                description: "Ensuring valid HTTP protocol usage",
-                details: "Validates HTTP protocol compliance, including header format, content length, and transfer encoding. Blocks malformed requests and protocol abuse attempts."
-            },
-            {
-                name: "Cookie Inspection",
-                description: "Validating cookie integrity and format",
-                details: "Examines cookies for tampering attempts, ensures proper format, and validates session tokens. Helps prevent session hijacking and cookie poisoning attacks."
             }
         ];
 
@@ -211,9 +191,9 @@
         }
 
         function detectAppleRelay(userAgent, ip) {
-            const appleRelayIpPatterns = [/^17\./, /^35\./, /^52\./]; 
-            const isSafari = userAgent.includes("Safari") && !userAgent.includes("Chrome");
-            return isSafari && appleRelayIpPatterns.some(pattern => pattern.test(ip));
+            const appleRelayIpRanges = [/^17\./]; 
+            const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
+            return isSafari && appleRelayIpRanges.some(pattern => pattern.test(ip));
         }
 
         async function generateRequestDetails() {
