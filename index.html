@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WAF Processing Simulation</title>
+    <style>
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #2d3748;
+            color: white;
+            text-align: left;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .info-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">WAF Request Processing Demo</h1>
+            <button onclick="showInfo()" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">
+                What is WAF?
+            </button>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Your Current Request Details</h2>
+            <div id="requestInfo" class="space-y-2"></div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">WAF Processing Steps</h2>
+            <div id="wafSteps" class="space-y-4"></div>
+        </div>
+
+        <div class="flex space-x-4">
+            <button onclick="simulateNewRequest()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                Simulate New Request
+            </button>
+            <button onclick="showStats()" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
+                Show Statistics
+            </button>
+        </div>
+    </div>
+
+    <div id="infoOverlay" class="overlay" onclick="hideInfo()"></div>
+    <div id="infoPanel" class="info-panel">
+        <h2 class="text-2xl font-bold mb-4">Web Application Firewall (WAF) Explained</h2>
+        <div class="space-y-4">
+            <p><strong>What is a WAF?</strong><br>
+            A Web Application Firewall (WAF) protects web applications by filtering and monitoring HTTP traffic between a web application and the Internet. It typically follows a set of rules that help prevent vulnerabilities in web applications and combat various attack vectors.</p>
+            
+            <p><strong>How Does a WAF Work?</strong><br>
+            A WAF operates through a set of rules often called policies. These policies aim to protect against vulnerabilities in the application by filtering out malicious traffic. The filtering can be done through:</p>
+            <ul class="list-disc pl-6 mb-4">
+                <li>Blacklisting: Blocking specific requests that match known attack patterns</li>
+                <li>Whitelisting: Allowing only requests that match pre-defined patterns</li>
+                <li>Hybrid: Combining both approaches</li>
+            </ul>
+
+            <p><strong>Common Threats WAF Protects Against:</strong></p>
+            <ul class="list-disc pl-6 mb-4">
+                <li>SQL Injection (SQLi)</li>
+                <li>Cross-Site Scripting (XSS)</li>
+                <li>Cross-Site Request Forgery (CSRF)</li>
+                <li>File Inclusion</li>
+                <li>Security Misconfigurations</li>
+                <li>Malicious Bots</li>
+            </ul>
+
+            <button onclick="hideInfo()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <div id="statsPanel" class="info-panel">
+        <h2 class="text-2xl font-bold mb-4">Request Statistics</h2>
+        <div id="statsContent" class="space-y-4">
+        </div>
+        <button onclick="hideStats()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded mt-4">
+            Close
+        </button>
+    </div>
+
+    <script>
+        const wafRules = [
+            {
+                name: "SQL Injection Check",
+                description: "Checking for SQL injection patterns in parameters",
+                details: "Analyzes request parameters for SQL injection patterns like '--', 'UNION SELECT', 'OR 1=1', etc. Also checks for hex-encoded variations and other evasion techniques."
+            },
+            {
+                name: "XSS Detection",
+                description: "Scanning for cross-site scripting attempts",
+                details: "Examines input for potentially malicious JavaScript code, HTML tags, and other script injection attempts. Includes checks for encoded payloads and event handlers."
+            },
+            {
+                name: "Rate Limiting",
+                description: "Checking request frequency from IP",
+                details: "Monitors and limits the number of requests from a single IP address within a specified time window to prevent DDoS attacks and brute force attempts."
+            },
+            {
+                name: "Geographic Filter",
+                description: "Validating request origin location",
+                details: "Uses IP geolocation to determine the request's origin country and validates against allowed/blocked country lists. Helps prevent attacks from high-risk regions."
+            },
+            {
+                name: "User Agent Validation",
+                description: "Checking for suspicious user agents",
+                details: "Validates user agent strings against known patterns of legitimate browsers and identifies suspicious ones commonly used by bots or automated tools."
+            },
+            {
+                name: "Input Sanitization",
+                description: "Cleaning and validating input parameters",
+                details: "Removes or encodes potentially dangerous characters and validates input length, type, and format to prevent various injection attacks."
+            },
+            {
+                name: "Protocol Enforcement",
+                description: "Ensuring valid HTTP protocol usage",
+                details: "Validates HTTP protocol compliance, including header format, content length, and transfer encoding. Blocks malformed requests and protocol abuse attempts."
+            },
+            {
+                name: "Cookie Inspection",
+                description: "Validating cookie integrity and format",
+                details: "Examines cookies for tampering attempts, ensures proper format, and validates session tokens. Helps prevent session hijacking and cookie poisoning attacks."
+            }
+        ];
+
+        let stats = {
+            totalRequests: 0,
+            blockedRequests: 0,
+            ruleViolations: {}
+        };
+
+        const endpoints = [
+            "/index.html",
+            "/api/users",
+            "/login",
+            "/dashboard",
+            "/about",
+            "/images/logo.png",
+            "/styles/main.css",
+            "/api/data"
+        ];
+
+        async function getUserIP() {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                console.error('Error fetching IP:', error);
+                return '127.0.0.1';
+            }
+        }
+
+        async function generateRequestDetails() {
+            const ip = await getUserIP();
+            return {
+                timestamp: new Date().toISOString(),
+                ip: ip,
+                userAgent: navigator.userAgent,
+                endpoint: getRandomElement(endpoints),
+                method: getRandomElement(["GET", "POST", "PUT", "DELETE"])
+            };
+        }
+
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function simulateWAFProcessing(requestDetails) {
+            const results = [];
+            let blocked = false;
+            
+            wafRules.forEach(rule => {
+                const passed = Math.random() > 0.2;
+                const processingTime = Math.random() * 50 + 10;
+                
+                if (!passed) {
+                    blocked = true;
+                    stats.ruleViolations[rule.name] = (stats.ruleViolations[rule.name] || 0) + 1;
+                }
+                
+                results.push({
+                    rule: rule.name,
+                    description: rule.description,
+                    details: rule.details,
+                    passed: passed,
+                    processingTime: processingTime.toFixed(2)
+                });
+            });
+
+            stats.totalRequests++;
+            if (blocked) stats.blockedRequests++;
+
+            return results;
+        }
+
+        function displayRequestInfo(details) {
+            const requestInfo = document.getElementById('requestInfo');
+            requestInfo.innerHTML = `
+                <div class="tooltip">
+                    <p><strong>Timestamp:</strong> ${details.timestamp}</p>
+                    <span class="tooltiptext">The exact time when the request was received by the WAF</span>
+                </div>
+                <div class="tooltip">
+                    <p><strong>IP Address:</strong> ${details.ip}</p>
+                    <span class="tooltiptext">Your actual IP address. WAF uses this to track request patterns and apply rate limiting</span>
+                </div>
+                <div class="tooltip">
+                    <p><strong>User Agent:</strong> ${details.userAgent}</p>
+                    <span class="tooltiptext">Your browser's identification string. WAF analyzes this to detect suspicious clients</span>
+                </div>
+                <div class="tooltip">
+                    <p><strong>Endpoint:</strong> ${details.endpoint}</p>
+                    <span class="tooltiptext">The requested URL path. Different security rules may apply to different endpoints</span>
+                </div>
+                <div class="tooltip">
+                    <p><strong>Method:</strong> ${details.method}</p>
+                    <span class="tooltiptext">HTTP method used for the request. Some methods might be restricted for certain endpoints</span>
+                </div>
+            `;
+        }
+
+        function displayWAFResults(results) {
+            const wafSteps = document.getElementById('wafSteps');
+            wafSteps.innerHTML = results.map(result => `
+                <div class="border rounded p-4 ${result.passed ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}">
+                    <div class="flex justify-between items-center">
+                        <div class="tooltip">
+                            <div>
+                                <h3 class="font-semibold">${result.rule}</h3>
+                                <p class="text-gray-600">${result.description}</p>
+                            </div>
+                            <span class="tooltiptext">${result.details}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="${result.passed ? 'text-green-600' : 'text-red-600'} font-semibold">
+                                ${result.passed ? 'PASSED' : 'FAILED'}
+                            </span>
+                            <p class="text-sm text-gray-500">${result.processingTime}ms</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function simulateNewRequest() {
+            const requestDetails = await generateRequestDetails();
+            const wafResults = simulateWAFProcessing(requestDetails);
+            
+            displayRequestInfo(requestDetails);
+            displayWAFResults(wafResults);
+        }
+
+        function showInfo() {
+            document.getElementById('infoOverlay').style.display = 'block';
+            document.getElementById('infoPanel').style.display = 'block';
+        }
+
+        function hideInfo() {
+            document.getElementById('infoOverlay').style.display = 'none';
+            document.getElementById('infoPanel').style.display = 'none';
+        }
+
+        function showStats() {
+            const statsContent = document.getElementById('statsContent');
+            const blockRate = ((stats.blockedRequests / stats.totalRequests) * 100).toFixed(2);
+            
+            let ruleViolationsHtml = '';
+            for (const [rule, count] of Object.entries(stats.ruleViolations)) {
+                ruleViolationsHtml += `
+                    <div class="ml-4">
+                        <strong>${rule}:</strong> ${count} violations
+                    </div>
+                `;
+            }
+
+            statsContent.innerHTML = `
+                <div>
+                    <p><strong>Total Requests:</strong> ${stats.totalRequests}</p>
+                    <p><strong>Blocked Requests:</strong> ${stats.blockedRequests}</p>
+                    <p><strong>Block Rate:</strong> ${blockRate}%</p>
+                    <p class="mt-4"><strong>Rule Violations:</strong></p>
+                    ${ruleViolationsHtml}
+                </div>
+            `;
+
+            document.getElementById('infoOverlay').style.display = 'block';
+            document.getElementById('statsPanel').style.display = 'block';
+        }
+
+        function hideStats() {
+            document.getElementById('infoOverlay').style.display = 'none';
+            document.getElementById('statsPanel').style.display = 'none';
+        }
+        simulateNewRequest();
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</body>
+</html>
