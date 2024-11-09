@@ -17,8 +17,7 @@ As a Platform/DevOps Engineer, I often need to remind myself and explain WAF mec
 
 ## Tech Stack
 
-- Frontend: Vanilla JS & HTML (no framework dependencies)
-- Styling: Tailwind CSS (via CDN)
-- IP Detection: IPify API
-- Deployment: GitHub Pages
-- CI/CD Ready: Easy integration with GitHub Actions
+- Frontend: Vanilla JS & HTML
+- Styling: Tailwind CSS v2.2.19
+- External API: ipify for IP detection
+- Hosting: GitHub Pages
