@@ -127,8 +127,7 @@
 
     <div id="statsPanel" class="info-panel">
         <h2 class="text-2xl font-bold mb-4">Request Statistics</h2>
-        <div id="statsContent" class="space-y-4">
-        </div>
+        <div id="statsContent" class="space-y-4"></div>
         <button onclick="hideStats()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded mt-4">
             Close
         </button>
@@ -147,34 +146,9 @@
                 details: "Examines input for potentially malicious JavaScript code, HTML tags, and other script injection attempts. Includes checks for encoded payloads and event handlers."
             },
             {
-                name: "Rate Limiting",
-                description: "Checking request frequency from IP",
-                details: "Monitors and limits the number of requests from a single IP address within a specified time window to prevent DDoS attacks and brute force attempts."
-            },
-            {
-                name: "Geographic Filter",
-                description: "Validating request origin location",
-                details: "Uses IP geolocation to determine the request's origin country and validates against allowed/blocked country lists. Helps prevent attacks from high-risk regions."
-            },
-            {
-                name: "User Agent Validation",
-                description: "Checking for suspicious user agents",
-                details: "Validates user agent strings against known patterns of legitimate browsers and identifies suspicious ones commonly used by bots or automated tools."
-            },
-            {
-                name: "Input Sanitization",
-                description: "Cleaning and validating input parameters",
-                details: "Removes or encodes potentially dangerous characters and validates input length, type, and format to prevent various injection attacks."
-            },
-            {
-                name: "Protocol Enforcement",
-                description: "Ensuring valid HTTP protocol usage",
-                details: "Validates HTTP protocol compliance, including header format, content length, and transfer encoding. Blocks malformed requests and protocol abuse attempts."
-            },
-            {
-                name: "Cookie Inspection",
-                description: "Validating cookie integrity and format",
-                details: "Examines cookies for tampering attempts, ensures proper format, and validates session tokens. Helps prevent session hijacking and cookie poisoning attacks."
+                name: "Apple Relay Detection",
+                description: "Detecting if request comes through Apple's Private Relay",
+                details: "Examines the IP and user agent to identify if the request originates from Apple's Private Relay, which can mask IP addresses.",
             }
         ];
 
@@ -206,19 +180,10 @@
             }
         }
 
-        async function generateRequestDetails() {
-            const ip = await getUserIP();
-            return {
-                timestamp: new Date().toISOString(),
-                ip: ip,
-                userAgent: navigator.userAgent,
-                endpoint: getRandomElement(endpoints),
-                method: getRandomElement(["GET", "POST", "PUT", "DELETE"])
-            };
-        }
-
-        function getRandomElement(array) {
-            return array[Math.floor(Math.random() * array.length)];
+        function detectAppleRelay(userAgent, ip) {
+            const appleRelayIpPatterns = [/^17\./, /^35\./, /^52\./]; 
+            const isSafari = userAgent.includes("Safari") && !userAgent.includes("Chrome");
+            return isSafari && appleRelayIpPatterns.some(pattern => pattern.test(ip));
         }
 
         function simulateWAFProcessing(requestDetails) {
@@ -226,8 +191,12 @@
             let blocked = false;
             
             wafRules.forEach(rule => {
-                const passed = Math.random() > 0.2;
-                const processingTime = Math.random() * 50 + 10;
+                let passed = true;
+                if (rule.name === "Apple Relay Detection") {
+                    passed = !detectAppleRelay(requestDetails.userAgent, requestDetails.ip);
+                } else {
+                    passed = Math.random() > 0.2;
+                }
                 
                 if (!passed) {
                     blocked = true;
@@ -239,7 +208,7 @@
                     description: rule.description,
                     details: rule.details,
                     passed: passed,
-                    processingTime: processingTime.toFixed(2)
+                    processingTime: (Math.random() * 50 + 10).toFixed(2)
                 });
             });
 
@@ -299,7 +268,14 @@
         }
 
         async function simulateNewRequest() {
-            const requestDetails = await generateRequestDetails();
+            const ip = await getUserIP();
+            const requestDetails = {
+                timestamp: new Date().toISOString(),
+                ip: ip,
+                userAgent: navigator.userAgent,
+                endpoint: getRandomElement(endpoints),
+                method: getRandomElement(["GET", "POST", "PUT", "DELETE"])
+            };
             const wafResults = simulateWAFProcessing(requestDetails);
             
             displayRequestInfo(requestDetails);
@@ -347,6 +323,7 @@
             document.getElementById('infoOverlay').style.display = 'none';
             document.getElementById('statsPanel').style.display = 'none';
         }
+
         simulateNewRequest();
     </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
