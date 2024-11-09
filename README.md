@@ -1,3 +1,4 @@
+[![pages-build-deployment](https://github.com/janpreet/waf-vision/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/janpreet/waf-vision/actions/workflows/pages/pages-build-deployment)
 # WAF Vision 🛡️
 
 A real-time Web Application Firewall (WAF) visualization tool for DevOps and Platform Engineers to demonstrate WAF request processing mechanics in action. Perfect for infrastructure discussions, security demonstrations, and developer onboarding.
